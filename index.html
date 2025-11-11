@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Deal or No Deal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="game-container">
+    <h1>Deal or No Deal</h1>
+    <p class="subtitle">
+      Choose your box, open the others, and see what the Banker offers… 💼
+    </p>
+
+    <div id="status" class="status">
+      First, choose your own box.
+    </div>
+
+    <div class="top-panel">
+      <div class="player-box-panel">
+        <h2>Your Box</h2>
+        <div id="player-box-display" class="player-box-display">
+          None selected
+        </div>
+      </div>
+
+      <div class="info-panel">
+        <p><strong>Opened boxes:</strong> <span id="opened-count">0</span> / 22</p>
+        <p><strong>Last opened:</strong> <span id="last-opened">-</span></p>
+        <p><strong>Banker’s last offer:</strong> <span id="last-offer">None</span></p>
+      </div>
+    </div>
+
+    <div id="boxes-container" class="boxes-container">
+      <!-- Boxes will be injected by JS -->
+    </div>
+
+    <div id="final-result" class="final-result hidden"></div>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
