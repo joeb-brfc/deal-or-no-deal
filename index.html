@@ -7,37 +7,80 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="game-container">
-    <h1>Deal or No Deal</h1>
-    <p class="subtitle">
-      Choose your box, open the others, and see what the Banker offers… 💼
-    </p>
+  <div class="game-shell">
+    <header class="header">
+      <h1 class="logo-text">Deal <span>or</span> No Deal</h1>
+      <p class="tagline">Pick your box, outsmart the Banker, and chase the big money 💼</p>
+    </header>
 
-    <div id="status" class="status">
-      First, choose your own box.
-    </div>
+    <main class="stage-layout">
+      <!-- LEFT VALUES -->
+      <aside class="values-panel">
+        <h2>Low Values</h2>
+        <ul id="values-left" class="values-list"></ul>
+      </aside>
 
-    <div class="top-panel">
-      <div class="player-box-panel">
-        <h2>Your Box</h2>
-        <div id="player-box-display" class="player-box-display">
-          None selected
+      <!-- CENTRE STAGE -->
+      <section class="stage-centre">
+        <p id="status" class="status-banner">
+          First, click one box to be <strong>your</strong> box.
+        </p>
+
+        <div id="boxes-container" class="boxes-grid">
+          <!-- Boxes injected by JS -->
         </div>
-      </div>
 
-      <div class="info-panel">
-        <p><strong>Opened boxes:</strong> <span id="opened-count">0</span> / 22</p>
-        <p><strong>Last opened:</strong> <span id="last-opened">-</span></p>
-        <p><strong>Banker’s last offer:</strong> <span id="last-offer">None</span></p>
-      </div>
-    </div>
+        <div class="bottom-row">
+          <div class="desk">
+            <div class="phone">
+              <div class="phone-base"></div>
+              <div class="phone-handset"></div>
+            </div>
+            <p class="banker-label">The Banker</p>
+          </div>
 
-    <div id="boxes-container" class="boxes-container">
-      <!-- Boxes will be injected by JS -->
-    </div>
+          <div class="chosen-box-area">
+            <div class="chosen-box" id="chosen-box">
+              <span id="chosen-box-number">--</span>
+            </div>
+            <p class="chosen-label">Your Box</p>
+          </div>
 
-    <div id="final-result" class="final-result hidden"></div>
+          <div class="info-summary">
+            <p><strong>Opened:</strong> <span id="opened-count">0</span> / 22</p>
+            <p><strong>Last opened:</strong> <span id="last-opened">-</span></p>
+            <p><strong>Banker’s last offer:</strong> <span id="last-offer">None</span></p>
+          </div>
+        </div>
+
+        <div id="final-result" class="final-result hidden"></div>
+      </section>
+
+      <!-- RIGHT VALUES -->
+      <aside class="values-panel">
+        <h2>High Values</h2>
+        <ul id="values-right" class="values-list"></ul>
+      </aside>
+    </main>
   </div>
+
+  <!-- BANKER MODAL -->
+  <div id="banker-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <h2>📞 Banker’s Offer</h2>
+      <p id="modal-message"></p>
+      <div class="modal-buttons">
+        <button id="deal-btn" class="btn deal">Deal</button>
+        <button id="no-deal-btn" class="btn no-deal">No Deal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOUND HOOKS (add your own mp3/wav files in the same folder) -->
+  <audio id="snd-open" src="box-open.mp3" preload="auto"></audio>
+  <audio id="snd-bank" src="banker.mp3" preload="auto"></audio>
+  <audio id="snd-deal" src="deal.mp3" preload="auto"></audio>
+  <audio id="snd-nodeal" src="nodeal.mp3" preload="auto"></audio>
 
   <script src="script.js" defer></script>
 </body>
