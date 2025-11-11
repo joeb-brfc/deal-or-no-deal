@@ -9,7 +9,7 @@
 <body>
   <div class="game-shell">
     <header class="header">
-      <h1 class="logo-text">Deal <span>or</span> No Deal</h1>
+      <h1 class="logo-text">DEAL <span>OR</span> NO DEAL</h1>
       <p class="tagline">Pick your box, outsmart the Banker, and chase the big money 💼</p>
     </header>
 
@@ -23,16 +23,27 @@
       <!-- CENTRE STAGE -->
       <section class="stage-centre">
         <p id="status" class="status-banner">
-          First, click one box to be <strong>your</strong> box.
+          First, click one box to be <strong>your</strong> box, or use Quick Pick.
         </p>
 
-        <div id="boxes-container" class="boxes-grid">
-          <!-- Boxes injected by JS -->
+        <!-- Big flash when a box is opened -->
+        <div id="opened-flash" class="opened-flash hidden"></div>
+
+        <!-- Controls -->
+        <div class="control-row">
+          <button id="quick-pick-btn" class="btn small">Quick Pick</button>
+          <button id="reset-btn" class="btn small secondary">Reset Game</button>
         </div>
 
+        <!-- Boxes grid -->
+        <div id="boxes-container" class="boxes-grid">
+          <!-- Injected by JS -->
+        </div>
+
+        <!-- Bottom row: banker, your box, info -->
         <div class="bottom-row">
           <div class="desk">
-            <div class="phone">
+            <div class="phone" id="phone">
               <div class="phone-base"></div>
               <div class="phone-handset"></div>
             </div>
@@ -50,6 +61,9 @@
             <p><strong>Opened:</strong> <span id="opened-count">0</span> / 22</p>
             <p><strong>Last opened:</strong> <span id="last-opened">-</span></p>
             <p><strong>Banker’s last offer:</strong> <span id="last-offer">None</span></p>
+            <p><strong>Games played:</strong> <span id="stat-games">0</span></p>
+            <p><strong>Deals taken:</strong> <span id="stat-deals">0</span></p>
+            <p><strong>No Deals:</strong> <span id="stat-nodeals">0</span></p>
           </div>
         </div>
 
@@ -64,7 +78,7 @@
     </main>
   </div>
 
-  <!-- BANKER MODAL -->
+  <!-- Banker Modal -->
   <div id="banker-modal" class="modal-backdrop hidden">
     <div class="modal">
       <h2>📞 Banker’s Offer</h2>
@@ -76,12 +90,12 @@
     </div>
   </div>
 
-  <!-- SOUND HOOKS (add your own mp3/wav files in the same folder) -->
+  <!-- Optional sounds (put files in same folder or leave as-is) -->
   <audio id="snd-open" src="box-open.mp3" preload="auto"></audio>
   <audio id="snd-bank" src="banker.mp3" preload="auto"></audio>
   <audio id="snd-deal" src="deal.mp3" preload="auto"></audio>
   <audio id="snd-nodeal" src="nodeal.mp3" preload="auto"></audio>
 
-  <script src="script.js" defer></script>
+  <script src="script.js"></script>
 </body>
 </html>

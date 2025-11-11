@@ -1,5 +1,4 @@
-// ---- Game data ----
-// 22 classic-style amounts (you can tweak if you like)
+// --- Game data ---
 const amounts = [
   0.01, 0.10, 0.50,
   1, 5, 10, 50, 100, 250, 500, 750,
@@ -11,12 +10,19 @@ let boxes = [];
 let playerBoxNumber = null;
 let openedCount = 0;
 let lastOffer = null;
-let gamePhase = "pick-own"; // "pick-own" | "opening" | "dealt" | "finished"
+let gamePhase = "pick-own";  // "pick-own" | "opening" | "dealt" | "finished"
+let pendingOffer = null;
 
-// Offer after these many boxes have been opened
 const offerPoints = [5, 8, 11, 14, 17, 19, 20, 21];
 
-// ---- DOM refs ----
+// Simple stats using localStorage
+let stats = {
+  games: 0,
+  deals: 0,
+  nodeals: 0
+};
+
+// DOM references
 const statusEl = document.getElementById("status");
 const boxesContainer = document.getElementById("boxes-container");
 const openedCountEl = document.getElementById("opened-count");
@@ -24,28 +30,33 @@ const lastOpenedEl = document.getElementById("last-opened");
 const lastOfferEl = document.getElementById("last-offer");
 const chosenBoxNumberEl = document.getElementById("chosen-box-number");
 const finalResultEl = document.getElementById("final-result");
-
 const valuesLeftEl = document.getElementById("values-left");
 const valuesRightEl = document.getElementById("values-right");
+const quickPickBtn = document.getElementById("quick-pick-btn");
+const resetBtn = document.getElementById("reset-btn");
+const phoneEl = document.getElementById("phone");
+const openedFlashEl = document.getElementById("opened-flash");
+const statGamesEl = document.getElementById("stat-games");
+const statDealsEl = document.getElementById("stat-deals");
+const statNoDealsEl = document.getElementById("stat-nodeals");
 
-// Modal
 const modalBackdrop = document.getElementById("banker-modal");
 const modalMessageEl = document.getElementById("modal-message");
 const dealBtn = document.getElementById("deal-btn");
 const noDealBtn = document.getElementById("no-deal-btn");
-let modalResolve = null;
 
-// Sounds
+// Sounds (optional)
 const sndOpen = document.getElementById("snd-open");
 const sndBank = document.getElementById("snd-bank");
 const sndDeal = document.getElementById("snd-deal");
 const sndNoDeal = document.getElementById("snd-nodeal");
 
-// ---- Helpers ----
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
+// --- Helpers ---
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+    [array[i], array[j]] = [array[j], array[i]];
   }
 }
 
@@ -67,13 +78,39 @@ function playSound(el) {
   }
 }
 
-// ---- Setup ----
+function loadStats() {
+  const raw = localStorage.getItem("dondStats");
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        stats = { ...stats, ...parsed };
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  renderStats();
+}
+
+function saveStats() {
+  localStorage.setItem("dondStats", JSON.stringify(stats));
+}
+
+function renderStats() {
+  statGamesEl.textContent = stats.games;
+  statDealsEl.textContent = stats.deals;
+  statNoDealsEl.textContent = stats.nodeals;
+}
+
+// --- Setup ---
+
 function initGame() {
   const shuffled = [...amounts];
   shuffle(shuffled);
 
-  boxes = shuffled.map((value, idx) => ({
-    number: idx + 1,
+  boxes = shuffled.map((value, index) => ({
+    number: index + 1,
     value,
     opened: false,
     isPlayer: false
@@ -82,15 +119,22 @@ function initGame() {
   playerBoxNumber = null;
   openedCount = 0;
   lastOffer = null;
+  pendingOffer = null;
   gamePhase = "pick-own";
 
   openedCountEl.textContent = "0";
   lastOpenedEl.textContent = "-";
   lastOfferEl.textContent = "None";
   chosenBoxNumberEl.textContent = "--";
-  statusEl.textContent = "First, click one box to be your box.";
+  statusEl.textContent = "First, click one box to be your box, or use Quick Pick.";
   finalResultEl.classList.add("hidden");
   finalResultEl.innerHTML = "";
+
+  openedFlashEl.classList.add("hidden");
+
+  // Reset background
+  document.body.style.background =
+    "radial-gradient(circle at top, #102040, #050814 60%)";
 
   renderAmountLists();
   renderBoxes();
@@ -123,8 +167,16 @@ function renderAmountLists() {
 
 function markAmountUsed(value) {
   const valueStr = String(value);
-  document.querySelectorAll(`.values-list li[data-amount="${valueStr}"]`)
-    .forEach((li) => li.classList.add("used"));
+  document
+    .querySelectorAll(`.values-list li[data-amount="${valueStr}"]`)
+    .forEach((li) => {
+      li.classList.add("used");
+      // high = £1000+
+      if (value >= 1000) {
+        li.classList.add("big-loss");
+        setTimeout(() => li.classList.remove("big-loss"), 700);
+      }
+    });
 }
 
 function renderBoxes() {
@@ -138,7 +190,6 @@ function renderBoxes() {
     const numSpan = document.createElement("span");
     numSpan.className = "box-number";
     numSpan.textContent = box.number;
-
     btn.appendChild(numSpan);
 
     if (box.isPlayer) {
@@ -161,39 +212,63 @@ function renderBoxes() {
   });
 }
 
-// ---- Modal logic ----
-function openBankerModal(offer) {
+// --- Banker modal ---
+
+function showBankerModal(offer) {
+  pendingOffer = offer;
   playSound(sndBank);
-  modalMessageEl.textContent = `The Banker offers you ${formatMoney(
-    offer
-  )}. Do you want to DEAL or NO DEAL?`;
+  if (phoneEl) phoneEl.classList.add("ringing");
 
+  modalMessageEl.textContent =
+    `The Banker offers you ${formatMoney(offer)}. Deal or No Deal?`;
   modalBackdrop.classList.remove("hidden");
-
-  return new Promise((resolve) => {
-    modalResolve = resolve;
-  });
 }
 
-function closeBankerModal() {
+function hideBankerModal() {
   modalBackdrop.classList.add("hidden");
-  modalResolve = null;
+  if (phoneEl) phoneEl.classList.remove("ringing");
 }
 
 dealBtn.addEventListener("click", () => {
-  playSound(sndDeal);
-  if (modalResolve) modalResolve(true);
-  closeBankerModal();
+  hideBankerModal();
+  if (pendingOffer != null && gamePhase === "opening") {
+    playSound(sndDeal);
+    handleDeal(pendingOffer);
+    pendingOffer = null;
+  }
 });
 
 noDealBtn.addEventListener("click", () => {
-  playSound(sndNoDeal);
-  if (modalResolve) modalResolve(false);
-  closeBankerModal();
+  hideBankerModal();
+  if (pendingOffer != null && gamePhase === "opening") {
+    playSound(sndNoDeal);
+    pendingOffer = null;
+    statusEl.textContent = "No Deal! Keep opening boxes…";
+    checkEndGame();
+  }
 });
 
-// ---- Game actions ----
+// --- Controls ---
+
+quickPickBtn.addEventListener("click", () => {
+  if (gamePhase !== "pick-own") return;
+  const available = boxes.filter((b) => !b.opened && !b.isPlayer);
+  if (!available.length) return;
+  const randomBox =
+    available[Math.floor(Math.random() * available.length)];
+  selectPlayerBox(randomBox);
+});
+
+resetBtn.addEventListener("click", () => {
+  initGame();
+});
+
+// --- Game actions ---
+
 function onBoxClick(e) {
+  // Block clicks while banker modal is open
+  if (!modalBackdrop.classList.contains("hidden")) return;
+
   const boxNumber = parseInt(e.currentTarget.dataset.boxNumber, 10);
   const box = boxes.find((b) => b.number === boxNumber);
   if (!box) return;
@@ -216,6 +291,27 @@ function selectPlayerBox(box) {
   renderBoxes();
 }
 
+function showOpenedFlash(box) {
+  const isHigh = box.value >= 1000; // £1000+ is "high"
+
+  openedFlashEl.textContent = formatMoney(box.value);
+  openedFlashEl.classList.remove("hidden", "show", "low", "high");
+  openedFlashEl.classList.add(isHigh ? "high" : "low");
+
+  // restart animation
+  void openedFlashEl.offsetWidth;
+  openedFlashEl.classList.add("show");
+
+  // tint the background slightly
+  document.body.style.background = isHigh
+    ? "radial-gradient(circle at top, #401010, #050814 70%)"
+    : "radial-gradient(circle at top, #0e2a60, #050814 70%)";
+
+  setTimeout(() => {
+    openedFlashEl.classList.add("hidden");
+  }, 2200);
+}
+
 function openBox(box) {
   if (box.opened || box.number === playerBoxNumber) {
     statusEl.textContent =
@@ -227,12 +323,11 @@ function openBox(box) {
   openedCount++;
   openedCountEl.textContent = String(openedCount);
   lastOpenedEl.textContent = formatMoney(box.value);
-  statusEl.textContent = `You opened Box ${box.number}: ${formatMoney(
-    box.value
-  )}`;
+  statusEl.textContent = `You opened Box ${box.number}: ${formatMoney(box.value)}`;
 
   markAmountUsed(box.value);
   playSound(sndOpen);
+  showOpenedFlash(box);
   renderBoxes();
 
   if (offerPoints.includes(openedCount)) {
@@ -246,24 +341,15 @@ function calculateOffer() {
   const remaining = boxes.filter((b) => !b.opened);
   const total = remaining.reduce((sum, b) => sum + b.value, 0);
   const average = total / remaining.length;
-  // tweak factor here if you want meaner/nicer Banker
-  return Math.round(average * 0.9);
+  return Math.round(average * 0.9); // stingy banker
 }
 
-async function callBanker() {
+function callBanker() {
   const offer = calculateOffer();
   lastOffer = offer;
   lastOfferEl.textContent = formatMoney(offer);
   statusEl.textContent = "📞 The Banker is calling with an offer...";
-
-  const deal = await openBankerModal(offer);
-
-  if (deal) {
-    handleDeal(offer);
-  } else {
-    statusEl.textContent = "No Deal! Keep opening boxes…";
-    checkEndGame();
-  }
+  showBankerModal(offer);
 }
 
 function handleDeal(offer) {
@@ -273,12 +359,8 @@ function handleDeal(offer) {
   const playerValue = playerBox.value;
 
   const resultHtml = `
-    <p>You accepted the Banker's deal of <strong>${formatMoney(
-      offer
-    )}</strong>.</p>
-    <p>Your own box (${playerBox.number}) contained <strong>${formatMoney(
-      playerValue
-    )}</strong>.</p>
+    <p>You accepted the Banker's deal of <strong>${formatMoney(offer)}</strong>.</p>
+    <p>Your own box (${playerBox.number}) contained <strong>${formatMoney(playerValue)}</strong>.</p>
     <p>${
       offer > playerValue
         ? "Great deal – you beat the Banker! 😎"
@@ -290,7 +372,13 @@ function handleDeal(offer) {
 
   finalResultEl.innerHTML = resultHtml;
   finalResultEl.classList.remove("hidden");
-  statusEl.textContent = "Game over – you dealt. Refresh the page to play again.";
+  statusEl.textContent = "Game over – you dealt. Hit Reset to play again.";
+
+  stats.games++;
+  stats.deals++;
+  saveStats();
+  renderStats();
+
   renderBoxes();
 }
 
@@ -312,17 +400,22 @@ function revealFinal() {
 
   const resultHtml = `
     <p>You went all the way with NO DEAL.</p>
-    <p>Your box (${playerBox.number}) contained <strong>${formatMoney(
-      playerValue
-    )}</strong>.</p>
+    <p>Your box (${playerBox.number}) contained <strong>${formatMoney(playerValue)}</strong>.</p>
   `;
 
   finalResultEl.innerHTML = resultHtml;
   finalResultEl.classList.remove("hidden");
   statusEl.textContent =
-    "Game over – that was your final amount. Refresh the page to play again.";
+    "Game over – that was your final amount. Hit Reset to play again.";
+
+  stats.games++;
+  stats.nodeals++;
+  saveStats();
+  renderStats();
+
   renderBoxes();
 }
 
-// ---- Start game ----
+// --- Start the game ---
+loadStats();
 initGame();
